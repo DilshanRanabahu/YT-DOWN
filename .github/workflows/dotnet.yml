@@ -1,4 +1,4 @@
-# This workflow will build a .NET project
+# Builds the WPF app and publishes a single-file VideoDownloader.exe as a downloadable artifact.
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
 
 name: .NET
@@ -9,20 +9,39 @@ on:
   pull_request:
     branches: [ "main" ]
 
+env:
+  PROJECT: VideoDownloader/VideoDownloader.csproj
+
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    # WPF can only be built on Windows
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v4
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 10.0.x
+
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore ${{ env.PROJECT }} -r win-x64
+
     - name: Build
-      run: dotnet build --no-restore
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet build ${{ env.PROJECT }} --no-restore -c Release -r win-x64 --self-contained
+
+    - name: Publish single-file exe
+      run: >
+        dotnet publish ${{ env.PROJECT }} --no-build -c Release -r win-x64 --self-contained
+        -p:PublishSingleFile=true
+        -p:IncludeNativeLibrariesForSelfExtract=true
+        -p:EnableCompressionInSingleFile=true
+        -o publish
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: VideoDownloader-win-x64
+        path: publish/VideoDownloader.exe
